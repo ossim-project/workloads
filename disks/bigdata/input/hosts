@@ -1,0 +1,5 @@
+127.0.0.1   localhost
+
+10.10.10.100    controller
+10.10.10.101    worker1
+10.10.10.102    worker2
