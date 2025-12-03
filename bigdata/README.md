@@ -98,6 +98,9 @@ Before running TPC-DS benchmarks, prepare the data in HDFS.
 > **Note:** Run this command on the namenode machine, as it uses `docker exec` to access the namenode container.
 
 ```bash
+# Install build dependencies
+sudo apt-get install -y build-essential
+
 # Prepare TPC-DS data in HDFS (generates data if needed, uploads to HDFS)
 python3 bench/tpcds_spark.py prepare \
     --hdfs-base hdfs://${MASTER_IP}:9000/bench/tpcds
@@ -348,6 +351,9 @@ YCSB (Yahoo! Cloud Serving Benchmark) tests database performance with various wo
 **Download YCSB:**
 
 ```bash
+# Install Java for YCSB
+sudo apt-get update && sudo apt-get install -y default-jre-headless
+
 python3 bench/ycsb_hbase.py init
 ```
 

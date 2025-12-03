@@ -535,8 +535,8 @@ Note: Uses built-in DataGen source and BlackHole sink.
     parser.add_argument(
         "--parallelism",
         type=int,
-        default=4,
-        help="Job parallelism (default: 4)",
+        default=1,
+        help="Job parallelism (default: 1)",
     )
 
     args = parser.parse_args()

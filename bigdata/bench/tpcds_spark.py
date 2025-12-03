@@ -279,14 +279,14 @@ Examples:
     )
     run_parser.add_argument(
         "--executor-memory",
-        default="2g",
-        help="Executor memory (default: 2g)",
+        default="1g",
+        help="Executor memory (default: 1g)",
     )
     run_parser.add_argument(
         "--executor-cores",
         type=int,
-        default=2,
-        help="Executor cores (default: 2)",
+        default=1,
+        help="Executor cores (default: 1)",
     )
 
     args = parser.parse_args()

@@ -91,6 +91,7 @@ def start_namenode(
         "-e", "HDFS-SITE.XML_dfs.replication=1",
         "-e", "HDFS-SITE.XML_dfs.permissions.enabled=false",
         "-e", "HDFS-SITE.XML_dfs.webhdfs.enabled=true",
+        "-e", "HDFS-SITE.XML_dfs.namenode.datanode.registration.ip-hostname-check=false",
         image,
         "hdfs", "namenode",
     ])
