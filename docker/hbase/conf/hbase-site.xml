@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+  HBase configuration for distributed mode.
+  Environment variables are substituted at container startup.
+-->
+<configuration>
+  <!-- Distributed mode -->
+  <property>
+    <name>hbase.cluster.distributed</name>
+    <value>true</value>
+  </property>
+
+  <!-- ZooKeeper configuration - set via HBASE_ZOOKEEPER_QUORUM env var -->
+  <property>
+    <name>hbase.zookeeper.quorum</name>
+    <value>${env.HBASE_ZOOKEEPER_QUORUM:-localhost}</value>
+  </property>
+  <property>
+    <name>hbase.zookeeper.property.clientPort</name>
+    <value>${env.HBASE_ZOOKEEPER_PORT:-2181}</value>
+  </property>
+
+  <!-- Root directory for HBase data -->
+  <property>
+    <name>hbase.rootdir</name>
+    <value>${env.HBASE_ROOTDIR:-file:///data/hbase}</value>
+  </property>
+
+  <!-- Disable managing ZooKeeper (use external ZK) -->
+  <property>
+    <name>hbase.zookeeper.property.dataDir</name>
+    <value>/data/zookeeper</value>
+  </property>
+
+  <!-- WAL directory -->
+  <property>
+    <name>hbase.wal.dir</name>
+    <value>${env.HBASE_WAL_DIR:-${hbase.rootdir}/WALs}</value>
+  </property>
+
+  <!-- Temporary directory -->
+  <property>
+    <name>hbase.tmp.dir</name>
+    <value>/tmp/hbase</value>
+  </property>
+
+  <!-- Disable safe mode for faster startup in dev/test -->
+  <property>
+    <name>hbase.unsafe.stream.capability.enforce</name>
+    <value>false</value>
+  </property>
+</configuration>
