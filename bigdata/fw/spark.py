@@ -129,11 +129,17 @@ def submit(
     script_path: str,
     executor_memory: str,
     executor_cores: int,
+    driver_host: str = None,
 ) -> None:
     """Submit a PySpark script to the cluster."""
+    # Auto-detect driver host IP if not provided
+    if not driver_host:
+        driver_host = get_host_ip()
+
     print("Submitting Spark application...")
     print(f"  Master: {master}")
     print(f"  Script: {script_path}")
+    print(f"  Driver host: {driver_host}")
 
     run([
         "docker", "run", "--rm",
@@ -142,6 +148,7 @@ def submit(
         image,
         "/opt/spark/bin/spark-submit",
         "--master", master,
+        "--conf", f"spark.driver.host={driver_host}",
         "--executor-memory", executor_memory,
         "--executor-cores", str(executor_cores),
         "/app/script.py",
@@ -254,6 +261,11 @@ Examples:
         default=1,
         help="Executor cores for submit (default: 1)",
     )
+    parser.add_argument(
+        "--driver-host",
+        help="Driver host IP for submit (default: auto-detect). "
+             "Set this to ensure executors can connect back to the driver.",
+    )
 
     args = parser.parse_args()
 
@@ -268,7 +280,11 @@ Examples:
             parser.error("--master is required for submit")
         if not args.script:
             parser.error("--script is required for submit")
-        submit(args.image, args.master, args.script, args.executor_memory, args.executor_cores)
+        submit(
+            args.image, args.master, args.script,
+            args.executor_memory, args.executor_cores,
+            args.driver_host,
+        )
         return 0
 
     # Require role for other actions

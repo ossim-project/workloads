@@ -295,8 +295,8 @@ Available workloads:
         p.add_argument(
             "--threads",
             type=int,
-            default=4,
-            help="Number of client threads (default: 4)",
+            default=1,
+            help="Number of client threads (default: 1)",
         )
         p.add_argument(
             "--ycsb-dir",
