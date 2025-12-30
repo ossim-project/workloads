@@ -1,14 +1,14 @@
 # Configurations
-ifeq ($(OSSIM_OUTPUT),)
+ifeq ($(OSSIM_OUT_DIR),)
 	OUTPUT := out/
 else
-	OUTPUT := $(OSSIM_OUTPUT)/workloads/
+	OUTPUT := $(OSSIM_OUT_DIR)/workloads/
 endif
 
-ifeq ($(OSSIM_BUILD),)
+ifeq ($(OSSIM_BUILD_DIR),)
 	BUILD := build/
 else
-	BUILD := $(OSSIM_BUILD)/workloads/
+	BUILD := $(OSSIM_BUILD_DIR)/workloads/
 endif
 
 OSSIM_PREFIX ?= /usr/local/
