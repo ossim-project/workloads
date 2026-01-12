@@ -44,6 +44,23 @@ Internet
 | `PROVIDER_BRIDGE` | `br-ossim1` | Provider network bridge |
 | `PROVIDER_BRIDGE_CIDR` | `10.10.11.1/24` | Provider bridge IP |
 
+## QEMU Escape Character
+
+The QEMU monitor escape character is automatically configured based on the environment:
+
+| Environment | `QEMU_ECHR` | Key Sequence |
+|-------------|-------------|--------------|
+| Bare metal  | `0x01`      | Ctrl+A       |
+| Inside QEMU | `0x14`      | Ctrl+T       |
+
+This avoids conflicts when running nested QEMU (QEMU inside QEMU). On bare metal, the standard Ctrl+A escape works. When already inside a QEMU VM, Ctrl+T is used instead so it doesn't interfere with the outer QEMU's escape sequence.
+
+To override manually:
+
+```bash
+make QEMU_ECHR=0x14 qemu-test
+```
+
 ### Setup Commands
 
 Run all commands from the `workloads/` directory:
