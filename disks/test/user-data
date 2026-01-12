@@ -6,9 +6,23 @@ users:
   - name: root
     plain_text_passwd: root
     lock_passwd: false
+  - name: ossim
+    plain_text_passwd: ossim
+    lock_passwd: false
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
 bootcmd:
   - systemctl set-default multi-user.target # Disable graphical interface
 runcmd:
+  # Configure autologin for ossim user on serial console
+  - mkdir -p /etc/systemd/system/serial-getty@ttyS0.service.d
+  - |
+    cat > /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf << 'EOF'
+    [Service]
+    ExecStart=
+    ExecStart=-/sbin/agetty --autologin ossim --noclear %I $TERM
+    EOF
+  - systemctl daemon-reload
   - sed -i 's/^#\?UsePAM.*/UsePAM no/' /etc/ssh/sshd_config # Disable PAM for SSH to speed up
   - sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config  # Allow root login with key or password
   - sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config  # Enable password auth
