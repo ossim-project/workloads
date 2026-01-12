@@ -33,9 +33,15 @@ $(b)meta-data:
 	@mkdir -p $(@D)
 	tee $@ < /dev/null > /dev/null
 
+.PHONY: build-test-dimg
+build-test-dimg:
+	@rm -rf $(test_dimg)
+	$(MAKE) $(test_dimg)
+
 .PHONY: qemu-test
-qemu-test: $(test_dimg)
-	sudo -i $(OSSIM_QEMU) -machine q35,accel=kvm -cpu host -smp $(TEST_VM_CPUS) -m $(TEST_VM_MEMORY) \
+qemu-test:
+	$(OSSIM_QEMU) -machine q35,accel=kvm --enable-ossim \
+	-cpu host -smp $(TEST_VM_CPUS) -m $(TEST_VM_MEMORY) \
 	-object memory-backend-memfd,id=mem0,size=$(TEST_VM_MEMORY),share=on \
 	-numa node,memdev=mem0 \
 	-drive file=$(test_dimg),media=disk,format=qcow2,if=virtio,index=0 \

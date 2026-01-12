@@ -25,8 +25,11 @@ PACKER_RUN := PACKER_PLUGIN_PATH=$(b).packer_plugins/ PACKER_CACHE_DIR=$(b).pack
 IMAGE_BUILD_CPUS := $(shell echo $$((`nproc` / 4 * 3)))
 IMAGE_BUILD_MEMORY := $(shell echo $$((`free -m | awk '/^Mem:/ {print $$4}'` / 4 * 3)))
 
-OSSIM_QEMU := $(PREFIX)bin/qemu-system-x86_64
-QEMU := /bin/qemu-system-x86_64
+# Escape character: 0x14 (Ctrl+T) inside QEMU to avoid conflict, 0x01 (Ctrl+A) otherwise
+QEMU_ECHR ?= $(shell if systemd-detect-virt -q 2>/dev/null; then echo 0x14; else echo 0x01; fi)
+
+OSSIM_QEMU := $(PREFIX)bin/qemu-system-x86_64 -echr $(QEMU_ECHR)
+QEMU := /bin/qemu-system-x86_64 -echr $(QEMU_ECHR)
 VIRT_COPY_OUT := virt-copy-out
 QEMU_IMG := qemu-img
 
