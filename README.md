@@ -50,7 +50,7 @@ ossimctl disable_sync
 make qemu-bigdata/node0
 ```
 ```sh
-make qemu-bidata/node1
+make qemu-bigdata/node1
 ```
 ```sh
 make qemu-bigdata/node2
