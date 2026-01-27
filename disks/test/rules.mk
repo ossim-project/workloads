@@ -52,3 +52,15 @@ qemu-test:
 	-boot c \
 	-display none -serial mon:stdio
 
+.PHONY: upstream-qemu-test
+upstream-qemu-test:
+	$(QEMU) -machine q35,accel=kvm \
+	-cpu host -smp $(TEST_VM_CPUS) -m $(TEST_VM_MEMORY) \
+	-object memory-backend-memfd,id=mem0,size=$(TEST_VM_MEMORY),share=on \
+	-numa node,memdev=mem0 \
+	-drive file=$(test_dimg),media=disk,format=qcow2,if=virtio,index=0 \
+    -fsdev local,id=input_fsdev,path=$(realpath $(host_microbench_d)),security_model=none,readonly=on \
+	-device virtio-9p-pci,fsdev=input_fsdev,mount_tag=input_fsdev \
+	-boot c \
+	-display none -serial mon:stdio
+
