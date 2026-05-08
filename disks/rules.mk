@@ -28,6 +28,19 @@ IMAGE_BUILD_MEMORY := $(shell echo $$((`free -m | awk '/^Mem:/ {print $$4}'` / 4
 # Escape character: 0x14 (Ctrl+T) inside QEMU to avoid conflict, 0x01 (Ctrl+A) otherwise
 QEMU_ECHR ?= $(shell if systemd-detect-virt -q 2>/dev/null; then echo 0x14; else echo 0x01; fi)
 
+# QEMU user-mode networking. Off by default for any disk that consults this
+# var. Reason: ossim virtualises guest CLOCK_REALTIME via pvclock; an NTP
+# daemon (chrony / systemd-timesyncd) inside the guest with reachable time
+# servers would slew CLOCK_REALTIME back toward host time, undoing the
+# simulated-time alignment. Set USE_USER_NET=1 to opt in (10.0.2.x NAT'd
+# via host).
+USE_USER_NET ?= 0
+ifeq ($(USE_USER_NET),1)
+QEMU_USER_NET_ARGS := -netdev user,id=user-net -device virtio-net-pci,netdev=user-net
+else
+QEMU_USER_NET_ARGS :=
+endif
+
 OSSIM_QEMU := $(PREFIX)bin/qemu-system-x86_64 -echr $(QEMU_ECHR)
 QEMU := /bin/qemu-system-x86_64 -echr $(QEMU_ECHR)
 VIRT_COPY_OUT := virt-copy-out
@@ -130,14 +143,17 @@ $(eval $(call include_rules,$(d)bigdata/rules.mk))
 $(eval $(call include_rules,$(d)database/rules.mk))
 $(eval $(call include_rules,$(d)dev/rules.mk))
 $(eval $(call include_rules,$(d)test/rules.mk))
+$(eval $(call include_rules,$(d)microbench/rules.mk))
 
 .PRECIOUS: $(foreach dimg,$(DIMG_ALL),$(call dimg_path,$(dimg)))
 
-.PHONY: $(addprefix dimg-,$(DIMG_ALL)) $(addprefix rebuild-dimg-,$(DIMG_ALL))
+.PHONY: $(addprefix dimg-,$(DIMG_ALL))
 
-$(addprefix dimg-,$(DIMG_ALL)): dimg-%: $(DIMG_O)/%/disk.qcow2
-
-$(addprefix rebuild-dimg-,$(DIMG_ALL)): rebuild-dimg-%:
+# `make dimg-<name>` always rebuilds the image from scratch. Disk-image
+# builds are infrequent and have many implicit inputs (cloud-init, packer,
+# install scripts) that make's mtime-based dependency tracking can't see
+# reliably, so we don't try to be clever about incremental builds.
+$(addprefix dimg-,$(DIMG_ALL)): dimg-%:
 	rm -rf $(call dimg_path,$*)
-	$(MAKE) dimg-$*
+	$(MAKE) $(call dimg_path,$*)
 	

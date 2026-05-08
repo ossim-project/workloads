@@ -33,11 +33,6 @@ $(b)meta-data:
 	@mkdir -p $(@D)
 	tee $@ < /dev/null > /dev/null
 
-.PHONY: build-test-dimg
-build-test-dimg:
-	@rm -rf $(test_dimg)
-	$(MAKE) $(test_dimg)
-
 host_microbench_d := $(ROOT)/host_microbench
 
 .PHONY: qemu-test
@@ -47,6 +42,7 @@ qemu-test:
 	-object memory-backend-memfd,id=mem0,size=$(TEST_VM_MEMORY),share=on \
 	-numa node,memdev=mem0 \
 	-drive file=$(test_dimg),media=disk,format=qcow2,if=virtio,index=0 \
+	$(QEMU_USER_NET_ARGS) \
     -fsdev local,id=input_fsdev,path=$(realpath $(host_microbench_d)),security_model=none,readonly=on \
 	-device virtio-9p-pci,fsdev=input_fsdev,mount_tag=input_fsdev \
 	-boot c \
@@ -59,8 +55,8 @@ upstream-qemu-test:
 	-object memory-backend-memfd,id=mem0,size=$(TEST_VM_MEMORY),share=on \
 	-numa node,memdev=mem0 \
 	-drive file=$(test_dimg),media=disk,format=qcow2,if=virtio,index=0 \
+	$(QEMU_USER_NET_ARGS) \
     -fsdev local,id=input_fsdev,path=$(realpath $(host_microbench_d)),security_model=none,readonly=on \
 	-device virtio-9p-pci,fsdev=input_fsdev,mount_tag=input_fsdev \
 	-boot c \
 	-display none -serial mon:stdio
-
