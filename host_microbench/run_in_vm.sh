@@ -35,6 +35,14 @@ if ! mountpoint -q /out 2>/dev/null; then
 fi
 
 echo "[$VM_LABEL] waiting on barrier $BARRIER ..."
+# Ready marker: signals the host driver (run_exp.sh / exp_s1.sh
+# automation) that this guest has reached the barrier-wait state and
+# is safe to release. Marker is per-VM so the driver can wait for all
+# guests deterministically before calling `ossimctl enable-sync` and
+# releasing the barrier. The marker lives next to the barrier in /out,
+# so the host sees it via the shared 9p mount.
+: > "$(dirname "$BARRIER")/ready_$VM_LABEL"
+
 # Sleep at 1Hz, not 10Hz: tight `sleep 0.1` polling has been observed to
 # trigger '*** stack smashing detected ***' inside the guest under ossim
 # sync (suspected ossim nanosleep / clock-source interaction). 1s is more
@@ -44,3 +52,11 @@ echo "[$VM_LABEL] barrier hit; starting bench"
 
 export VM_LABEL OSSIM_MODE OSSIM_VTIME_EPOCH_NS EXP_LABEL
 exec python3 "$BENCH" --output "$OUTPUT" --label "$VM_LABEL" $ARGS
+
+# # Pin the bench to guest CPU 0. With ossim sync, ossim_absorbed_ns is
+# # per-vCPU, so each pvclock page sees a different system_time bias. If the
+# # bench thread migrates between guest vCPUs, the vDSO reads from a
+# # different page and CLOCK_MONOTONIC can ratchet forward to the
+# # less-absorbed (more wall-tracking) value, locking in an inflated reading
+# # for the rest of the run. Pinning eliminates that source of variance.
+# exec taskset -c 0 python3 "$BENCH" --output "$OUTPUT" --label "$VM_LABEL" $ARGS

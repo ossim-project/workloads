@@ -12,9 +12,9 @@ are deferred to the bigdata stack.
   result-file shape.
 - Per-VM writable output via the `output_fsdev` 9p tag, lands at
   `$OSSIM_OUT_DIR/workloads/disks/microbench/instance-N/output/` on the host.
-- `common.sh` — shared helpers: `spawn_vm_tmux`, barrier release/clear,
-  host-wall bracket, host-side noise (`start_host_noise`/`stop_host_noise`).
-- Experiment drivers: `exp_s1.sh` (canonical), `exp_m1_mem_isolation.sh`.
+- `experiment_lib.py` — shared helpers: `spawn_vm_tmux`, barrier
+  release/clear, ready-marker poll, host-wall bracket, host-side noise.
+- Experiment drivers: `exp_s1.py` (canonical), `exp_m1_mem_isolation.sh`.
 
 ## One-time host setup
 
@@ -79,47 +79,17 @@ timestamps around the guest run, so post-processing can compute both
 
 ## Exp S1: cost and robustness of ossim scheduling
 
-One driver, five phases:
-
-| PHASE                | Setup                                                 |
-| -------------------- | ----------------------------------------------------- |
-| `physical`           | bare-metal `cpu_loop` on the host                     |
-| `clean.noossim`      | N VMs, ossim disabled, no host noise                  |
-| `clean.ossim`        | N VMs, ossim sync enabled, no host noise              |
-| `perturbed.noossim`  | 2 VMs on disjoint cpusets; host stress-ng on VM-0's CPUs |
-| `perturbed.ossim`    | same as above, ossim sync enabled                     |
+The driver is `exp_s1.py`. Its built-in docs cover phases, metrics,
+methodology, output layout, knobs, and the operator workflow:
 
 ```bash
-# Bare-metal baseline
-PHASE=physical                                 ./exp_s1.sh
-
-# Clean-VM conditions (set N_VMS, VM0_CPUSET, VM1_CPUSET as needed)
-PHASE=clean.noossim    N_VMS=2                 ./exp_s1.sh
-PHASE=clean.ossim      N_VMS=2                 ./exp_s1.sh
-
-# Perturbed-VM conditions: stress-ng pinned to VM-0 by default
-PHASE=perturbed.noossim VM0_CPUSET=0-1 VM1_CPUSET=2-3 NOISE_WORKERS=2 \
-    ./exp_s1.sh
-PHASE=perturbed.ossim   VM0_CPUSET=0-1 VM1_CPUSET=2-3 NOISE_WORKERS=2 \
-    ./exp_s1.sh
+./exp_s1.py help        # long-form experiment design doc
+./exp_s1.py --help      # flag reference
 ```
 
-The driver waits for the operator to paste the in-VM one-liner into each
-tmux pane (it prints the line). Once all VMs print
-`[vm-N] waiting on barrier`, hit Enter on the driver to release; all VMs
-unblock together via `/out/start`. Each VM's `cpu_loop` produces samples
-that `analyze/skew.py` consumes to compute Jain's index, CV, and max/min
-spread of completed work over guest-virtual time.
-
-Headline numbers per phase land at:
-```
-$OSSIM_OUT_DIR/workloads/exps/exp_s1/<phase>/cpu_vm-*.json
-$OSSIM_OUT_DIR/workloads/exps/exp_s1/<phase>/skew_summary.json
-$OSSIM_OUT_DIR/workloads/exps/exp_s1/<phase>/cpu_loop.host_bracket.json
-```
-
-For variance, re-run each phase 5–10 times (separate driver invocations);
-post-processing aggregates.
+For variance, re-run each phase 5–10 times (separate driver
+invocations); each invocation lands in its own timestamped subdir under
+`--out-dir`, so runs of the same phase don't collide.
 
 ## Exp M1: memory isolation under noisy neighbor
 
