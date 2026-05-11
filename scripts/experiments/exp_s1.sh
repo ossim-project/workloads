@@ -46,6 +46,7 @@ NOISE_WORKERS="${NOISE_WORKERS:-2}"
 TIME_S="${TIME_S:-10}"
 SAMPLE_MS="${SAMPLE_MS:-100}"
 INNER="${INNER:-100000}"
+VTIME_EPOCH_NS="${VTIME_EPOCH_NS:-10000000}"  # 10ms, used by ossimctl enable-sync
 SESSION="${SESSION:-ossim-s1-${PHASE//./_}}"
 
 phase_label() { echo "${PHASE//./_}"; }
@@ -159,18 +160,20 @@ cat <<EOF
 
 tmux session: $SESSION  (attach with: tmux attach -t $SESSION)
 
-Wait for the VMs to finish booting, then:
-$( (( is_ossim )) && echo "  - On the host:  ossimctl enable-sync" )
-  - In each VM (windows vm-N):
-      
-      export N=[node ID, e.g. 0]
-      bash /out/start_bench.sh
+The image's autorun execs /out/start_bench.sh on autologin, so each VM
+should reach the barrier wait on its own once boot finishes — no manual
+'bash /out/start_bench.sh' needed.
 
-    (per-VM env, including HOST_CPUSET, is baked into that script)
-
-Once all VMs print "[vm-N] waiting on barrier", press Enter here to release.
+Once every VM window prints "[vm-N] waiting on barrier $\{...\}/start",
+press Enter here. $( (( is_ossim )) && echo "I will then call 'ossimctl enable-sync' and release the barrier." || echo "I will release the barrier." )
 EOF
 read -r _
+
+if (( is_ossim )); then
+    echo "Enabling ossim sync (vtime_epoch=${VTIME_EPOCH_NS}ns)..."
+    ossimctl enable-sync "$VTIME_EPOCH_NS"
+    sleep 1
+fi
 
 # Host-wall start before barrier release. Export EXP_LABEL/VM_LABEL/OSSIM_MODE
 # so collect_metadata() in lib_results.py picks them up — without this the
@@ -223,6 +226,20 @@ if (( ${#collected[@]} >= 2 )); then
     python3 "$HOST_MICROBENCH/analyze/skew.py" "${collected[@]}" \
         --out "$phase_dir/skew_summary.json"
 fi
+
+# Teardown: kill the tmux session (each window's `make qemu-microbench-
+# instance` is the foreground command, so SIGHUP-on-window-kill propagates
+# down to qemu and the guests go away). Then return ossim to a clean
+# state so the next phase / run starts from disabled.
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+    echo "Terminating tmux session $SESSION..."
+    tmux kill-session -t "$SESSION" 2>/dev/null || true
+fi
+if (( is_ossim )); then
+    echo "Disabling ossim sync..."
+    ossimctl disable-sync || true
+fi
+ossimctl disable || true
 
 echo
 echo "Phase done."

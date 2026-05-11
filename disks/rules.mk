@@ -153,7 +153,13 @@ $(eval $(call include_rules,$(d)microbench/rules.mk))
 # builds are infrequent and have many implicit inputs (cloud-init, packer,
 # install scripts) that make's mtime-based dependency tracking can't see
 # reliably, so we don't try to be clever about incremental builds.
-$(addprefix dimg-,$(DIMG_ALL)): dimg-%:
+#
+# Note: microbench has its own explicit `dimg-microbench` rule defined in
+# microbench/rules.mk (so the real packer build never lives behind the
+# $(microbench_dimg) file target — preventing accidental rebuilds when an
+# experiment runs). Filter it out here so we don't define two recipes for
+# the same target.
+$(addprefix dimg-,$(filter-out microbench,$(DIMG_ALL))): dimg-%:
 	rm -rf $(call dimg_path,$*)
 	$(MAKE) $(call dimg_path,$*)
 	

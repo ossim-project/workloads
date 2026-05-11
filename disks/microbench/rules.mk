@@ -26,14 +26,32 @@ build-microbench-tools:
 $(microbench_native_tools):
 	$(MAKE) -C $(microbench_input_d)
 
-$(microbench_dimg): $(b)seed.raw $(d)install.sh $(base_hcl) $(PACKER)
-	rm -rf $(@D)
+# $(microbench_dimg) is the on-disk file target. It deliberately has NO
+# build recipe — the only way to (re)build it is via the explicit
+# `make dimg-microbench` target defined below. If anything (e.g. an
+# instance overlay) depends on this file and it's missing, the recipe
+# here fires and errors out loudly instead of silently rebuilding.
+# Removing the upstream dep list (install.sh, seed.raw, base_hcl,
+# PACKER) means an out-of-date install.sh never triggers an implicit
+# rebuild — the operator must run `make dimg-microbench` explicitly.
+$(microbench_dimg):
+	@echo "ERROR: $@ does not exist." >&2
+	@echo "       Run 'make dimg-microbench' to build the microbench disk image." >&2
+	@exit 1
+
+# Explicit user-facing entrypoint for (re)building the microbench disk
+# image. This is where the real packer build lives. The static pattern
+# rule in disks/rules.mk filters out 'microbench' so this explicit
+# rule is the only definition of `dimg-microbench`.
+.PHONY: dimg-microbench
+dimg-microbench: $(b)seed.raw $(d)install.sh $(base_hcl) $(PACKER)
+	rm -rf $(dir $(microbench_dimg))
 	$(PACKER_RUN) build \
 	-var "disk_size=$(MICROBENCH_DIMG_DISK_SIZE)" \
 	-var "iso_url=$(MICROBENCH_DIMG_ISO_URL)" \
 	-var "iso_cksum_url=$(MICROBENCH_DIMG_CKSUM_URL)" \
-	-var "out_dir=$(@D)" \
-	-var "out_name=$(@F)" \
+	-var "out_dir=$(dir $(microbench_dimg))" \
+	-var "out_name=$(notdir $(microbench_dimg))" \
 	-var "cpus=$(IMAGE_BUILD_CPUS)" \
 	-var "memory=$(IMAGE_BUILD_MEMORY)" \
 	-var "seedimg=$(word 1,$^)" \
@@ -69,6 +87,12 @@ microbench_inst_output := $(microbench_inst_d)/output
 QEMU_CPUSET ?=
 QEMU_LAUNCHER := $(if $(QEMU_CPUSET),taskset -c $(QEMU_CPUSET),)
 
+# Per-instance overlay: depends on $(microbench_dimg) so the overlay
+# gets regenerated automatically when the operator rebuilds the dimg
+# (via `make dimg-microbench`). With the dimg target above refusing
+# to build implicitly (no recipe), this dependency can never *trigger*
+# an image rebuild — it just propagates new image content forward to
+# the overlay when the dimg has actually been updated.
 $(microbench_inst_overlay): $(microbench_dimg)
 	@mkdir -p $(microbench_inst_d)
 	$(QEMU_IMG) create -f qcow2 -F qcow2 -b $$(realpath --relative-to=$(@D) $<) $@
