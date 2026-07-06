@@ -19,3 +19,7 @@ sudo mount -t 9p -o trans=virtio,rw,cache=none,access=any,msize=104857600 \
     output_fsdev "$MNT_DIR"
 EOF
 chmod +x /usr/local/bin/mount_output_fs.sh
+
+sudo apt-get update && sudo apt-get install -y sysbench gdb
+sudo rm -rf /var/lib/apt/lists/*
+sudo apt-get clean
