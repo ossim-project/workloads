@@ -143,6 +143,7 @@ $(eval $(call include_rules,$(d)bigdata/rules.mk))
 $(eval $(call include_rules,$(d)database/rules.mk))
 $(eval $(call include_rules,$(d)dev/rules.mk))
 $(eval $(call include_rules,$(d)test/rules.mk))
+$(eval $(call include_rules,$(d)quick/rules.mk))
 $(eval $(call include_rules,$(d)microbench/rules.mk))
 
 .PRECIOUS: $(foreach dimg,$(DIMG_ALL),$(call dimg_path,$(dimg)))
