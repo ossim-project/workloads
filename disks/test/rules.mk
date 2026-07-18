@@ -2,7 +2,8 @@ TEST_DIMG_ISO_URL := https://cloud-images.ubuntu.com/noble/current/noble-server-
 TEST_DIMG_CKSUM_URL := https://cloud-images.ubuntu.com/noble/current/SHA256SUMS
 TEST_DIMG_DISK_SIZE := 40G
 
-TEST_VM_CPUS := 2
+TEST_VM_CPUS ?= 2
+TEST_VM_CPU_OPTS ?= -cpu host -smp 2 -ossim-vcpu-pin 2,3
 TEST_VM_MEMORY := 4G
 
 test_dimg := $(call dimg_path,test)
@@ -33,18 +34,15 @@ $(b)meta-data:
 	@mkdir -p $(@D)
 	tee $@ < /dev/null > /dev/null
 
-host_microbench_d := $(ROOT)/host_microbench
-
 .PHONY: qemu-test
 qemu-test:
 	$(OSSIM_QEMU) -machine q35,accel=kvm -enable-ossim \
-	-cpu host -smp $(TEST_VM_CPUS) -m $(TEST_VM_MEMORY) \
+	$(TEST_VM_CPU_OPTS) \
+	-m $(TEST_VM_MEMORY) \
 	-object memory-backend-memfd,id=mem0,size=$(TEST_VM_MEMORY),share=on \
 	-numa node,memdev=mem0 \
 	-drive file=$(test_dimg),media=disk,format=qcow2,if=virtio,index=0 \
 	$(QEMU_USER_NET_ARGS) \
-    -fsdev local,id=input_fsdev,path=$(realpath $(host_microbench_d)),security_model=none,readonly=on \
-	-device virtio-9p-pci,fsdev=input_fsdev,mount_tag=input_fsdev \
 	-boot c \
 	-display none -serial mon:stdio
 
@@ -56,7 +54,38 @@ upstream-qemu-test:
 	-numa node,memdev=mem0 \
 	-drive file=$(test_dimg),media=disk,format=qcow2,if=virtio,index=0 \
 	$(QEMU_USER_NET_ARGS) \
-    -fsdev local,id=input_fsdev,path=$(realpath $(host_microbench_d)),security_model=none,readonly=on \
-	-device virtio-9p-pci,fsdev=input_fsdev,mount_tag=input_fsdev \
 	-boot c \
 	-display none -serial mon:stdio
+
+# >>> Quick variant: the test image overlaid with the shared quick-shell
+# init override (disks/install-quick.sh) for fast boots straight into a
+# root shell, bypassing systemd and autologin.
+test_quick_dimg := $(call dimg_path,test-quick)
+DIMG_ALL += test-quick
+
+$(test_quick_dimg): $(test_dimg) $(quick_install_sh) $(extend_noinput_hcl) $(PACKER)
+	rm -rf $(@D)
+	$(PACKER_RUN) build \
+	-var "base_img=$(word 1,$^)" \
+	-var "disk_size=$(TEST_DIMG_DISK_SIZE)" \
+	-var "cpus=$(IMAGE_BUILD_CPUS)" \
+	-var "memory=$(IMAGE_BUILD_MEMORY)" \
+	-var "out_dir=$(@D)" \
+	-var "out_name=$(@F)" \
+	-var "user_name=root" \
+	-var "user_password=root" \
+	-var "install_script=$(word 2,$^)" \
+	-var "use_backing_file=true" \
+	$(extend_noinput_hcl)
+
+.PHONY: qemu-test-quick
+qemu-test-quick:
+	$(OSSIM_QEMU) -machine q35,accel=kvm -enable-ossim \
+	$(TEST_VM_CPU_OPTS) \
+	-m $(TEST_VM_MEMORY) \
+	-object memory-backend-memfd,id=mem0,size=$(TEST_VM_MEMORY),share=on \
+	-numa node,memdev=mem0 \
+	-drive file=$(test_quick_dimg),media=disk,format=qcow2,if=virtio,index=0 \
+	-boot c \
+	-display none -serial mon:stdio
+# <<< Quick variant

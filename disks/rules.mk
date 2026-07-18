@@ -52,6 +52,10 @@ base_hcl := $(d)base.pkr.hcl
 extend_hcl := $(d)extend.pkr.hcl
 extend_noinput_hcl := $(d)extend_noinput.pkr.hcl
 
+# Shared provisioning script for the *-quick image variants: overlays a
+# base image with an init=quick-shell override for fast boots.
+quick_install_sh := $(d)install-quick.sh
+
 %disk.raw: %disk.qcow2
 	$(QEMU_IMG) convert -f qcow2 -O raw $< $@ 
 
@@ -143,7 +147,6 @@ $(eval $(call include_rules,$(d)bigdata/rules.mk))
 $(eval $(call include_rules,$(d)database/rules.mk))
 $(eval $(call include_rules,$(d)dev/rules.mk))
 $(eval $(call include_rules,$(d)test/rules.mk))
-$(eval $(call include_rules,$(d)quick/rules.mk))
 $(eval $(call include_rules,$(d)microbench/rules.mk))
 
 .PRECIOUS: $(foreach dimg,$(DIMG_ALL),$(call dimg_path,$(dimg)))
@@ -155,12 +158,12 @@ $(eval $(call include_rules,$(d)microbench/rules.mk))
 # install scripts) that make's mtime-based dependency tracking can't see
 # reliably, so we don't try to be clever about incremental builds.
 #
-# Note: microbench has its own explicit `dimg-microbench` rule defined in
-# microbench/rules.mk (so the real packer build never lives behind the
-# $(microbench_dimg) file target — preventing accidental rebuilds when an
-# experiment runs). Filter it out here so we don't define two recipes for
-# the same target.
-$(addprefix dimg-,$(filter-out microbench,$(DIMG_ALL))): dimg-%:
+# Note: microbench and microbench-quick have their own explicit
+# `dimg-microbench{,-quick}` rules defined in microbench/rules.mk (so the
+# real packer build never lives behind the dimg file targets — preventing
+# accidental rebuilds when an experiment runs). Filter them out here so we
+# don't define two recipes for the same target.
+$(addprefix dimg-,$(filter-out microbench microbench-quick,$(DIMG_ALL))): dimg-%:
 	rm -rf $(call dimg_path,$*)
 	$(MAKE) $(call dimg_path,$*)
 	
