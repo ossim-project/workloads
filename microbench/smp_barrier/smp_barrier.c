@@ -31,6 +31,7 @@ static struct spin_barrier sbar;
 static pthread_barrier_t pbar;
 static int use_sleep_barrier;
 static int nthreads;
+static int first_cpu;
 static long iters = 100000;
 static long work_cycles;
 static uint64_t *wait_ns; /* thread 0's per-round barrier wait */
@@ -57,7 +58,7 @@ static void *worker(void *arg)
 	volatile uint64_t sink = 0;
 	long i, w;
 
-	if (bench_pin_to_cpu(id)) {
+	if (bench_pin_to_cpu(first_cpu + id)) {
 		perror("sched_setaffinity");
 		exit(1);
 	}
@@ -88,11 +89,15 @@ static void *worker(void *arg)
 static void usage(const char *prog)
 {
 	fprintf(stderr,
-		"Usage: %s [-t threads] [-n iters] [-w work_cycles] [-s]\n"
-		"  -t  threads, one per CPU starting at 0 (default: online CPUs)\n"
+		"Usage: %s [-a first_cpu] [-t threads] [-n iters] "
+		"[-w work_cycles] [-s] [-r raw_file]\n"
+		"  -a  first CPU; threads use consecutive CPUs (default 0)\n"
+		"  -t  threads, one per CPU starting at first_cpu "
+		"(default: online CPUs)\n"
 		"  -n  barrier rounds (default 100000)\n"
 		"  -w  dummy work iterations between rounds (default 0)\n"
-		"  -s  use a sleeping pthread barrier instead of a spin barrier\n",
+		"  -s  use a sleeping pthread barrier instead of a spin barrier\n"
+		"  -r  dump raw thread-0 barrier waits in temporal order\n",
 		prog);
 }
 
@@ -100,13 +105,18 @@ int main(int argc, char **argv)
 {
 	pthread_t *threads;
 	struct bench_stats st;
+	struct bench_tail_counts tails;
+	const char *raw_path = NULL;
 	uint64_t start, elapsed;
 	int opt, i;
 
 	nthreads = (int)sysconf(_SC_NPROCESSORS_ONLN);
 
-	while ((opt = getopt(argc, argv, "t:n:w:sh")) != -1) {
+	while ((opt = getopt(argc, argv, "a:t:n:w:sr:h")) != -1) {
 		switch (opt) {
+		case 'a':
+			first_cpu = atoi(optarg);
+			break;
 		case 't':
 			nthreads = atoi(optarg);
 			break;
@@ -119,12 +129,15 @@ int main(int argc, char **argv)
 		case 's':
 			use_sleep_barrier = 1;
 			break;
+		case 'r':
+			raw_path = optarg;
+			break;
 		default:
 			usage(argv[0]);
 			return opt == 'h' ? 0 : 1;
 		}
 	}
-	if (nthreads < 2 || iters <= 0) {
+	if (nthreads < 2 || iters <= 0 || first_cpu < 0) {
 		usage(argv[0]);
 		return 1;
 	}
@@ -141,6 +154,11 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	if (bench_pin_to_cpu(first_cpu)) {
+		perror("sched_setaffinity");
+		return 1;
+	}
+
 	start = bench_now_ns();
 	for (i = 1; i < nthreads; i++)
 		pthread_create(&threads[i], NULL, worker,
@@ -151,16 +169,23 @@ int main(int argc, char **argv)
 	elapsed = bench_now_ns() - start;
 
 	bench_stats_compute(wait_ns, iters, &st);
+	bench_tail_counts_compute(wait_ns, iters, &tails);
 
 	printf("{\"bench\": \"smp_barrier\", \"threads\": %d, \"iters\": %ld, "
 	       "\"work_cycles\": %ld, \"mode\": \"%s\", "
+	       "\"clock\": \"CLOCK_MONOTONIC\", "
+	       "\"cpu_first\": %d, \"cpu_last\": %d, "
 	       "\"elapsed_ns\": %llu, \"rounds_per_sec\": %.1f, ",
 	       nthreads, iters, work_cycles,
 	       use_sleep_barrier ? "sleep" : "spin",
+	       first_cpu, first_cpu + nthreads - 1,
 	       (unsigned long long)elapsed,
 	       (double)iters / ((double)elapsed / 1e9));
 	bench_stats_json(stdout, "t0_wait_ns", &st);
+	printf(", \"tail_counts\": ");
+	bench_tail_counts_json(stdout, &tails);
 	printf("}\n");
+	bench_dump_raw(raw_path, wait_ns, iters);
 
 	free(threads);
 	free(wait_ns);

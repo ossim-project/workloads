@@ -64,7 +64,7 @@ fi
 # guard is per-boot but stable across login sessions, preventing the
 # bench from looping after a normal completion. Gone on guest reboot.
 if [[ ! -e /run/ossim_autorun_done ]]; then
-    for _i in 1 2 3 4 5 6 7 8 9 10; do
+    for _i in 1 2 3; do
         [[ -f "$HOME/run/run.sh" ]] && break
         sleep 1
     done

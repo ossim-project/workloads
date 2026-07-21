@@ -47,6 +47,41 @@ struct bench_stats {
 	size_t n;
 };
 
+struct bench_tail_counts {
+	size_t zero;
+	size_t gt_10us;
+	size_t gt_1ms;
+	size_t gt_10ms;
+	size_t gt_100ms;
+	size_t gt_1s;
+};
+
+static inline void bench_tail_counts_compute(const uint64_t *samples, size_t n,
+					     struct bench_tail_counts *tails)
+{
+	size_t i;
+
+	memset(tails, 0, sizeof(*tails));
+	for (i = 0; i < n; i++) {
+		tails->zero += samples[i] == 0;
+		tails->gt_10us += samples[i] > 10000;
+		tails->gt_1ms += samples[i] > 1000000;
+		tails->gt_10ms += samples[i] > 10000000;
+		tails->gt_100ms += samples[i] > 100000000;
+		tails->gt_1s += samples[i] > 1000000000;
+	}
+}
+
+static inline void bench_tail_counts_json(FILE *f,
+					  const struct bench_tail_counts *tails)
+{
+	fprintf(f,
+		"{\"zero\": %zu, \"gt_10us\": %zu, \"gt_1ms\": %zu, "
+		"\"gt_10ms\": %zu, \"gt_100ms\": %zu, \"gt_1s\": %zu}",
+		tails->zero, tails->gt_10us, tails->gt_1ms, tails->gt_10ms,
+		tails->gt_100ms, tails->gt_1s);
+}
+
 static int bench_cmp_u64(const void *a, const void *b)
 {
 	uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b;
@@ -54,24 +89,31 @@ static int bench_cmp_u64(const void *a, const void *b)
 	return x < y ? -1 : x > y ? 1 : 0;
 }
 
-/* Sorts @samples in place. */
-static inline void bench_stats_compute(uint64_t *samples, size_t n,
+static inline void bench_stats_compute(const uint64_t *samples, size_t n,
 				       struct bench_stats *st)
 {
+	uint64_t *sorted;
 	double sum = 0.0;
 	size_t i;
 
-	qsort(samples, n, sizeof(*samples), bench_cmp_u64);
+	sorted = malloc(n * sizeof(*sorted));
+	if (!sorted) {
+		perror("malloc statistics scratch space");
+		exit(1);
+	}
+	memcpy(sorted, samples, n * sizeof(*sorted));
+	qsort(sorted, n, sizeof(*sorted), bench_cmp_u64);
 	for (i = 0; i < n; i++)
 		sum += (double)samples[i];
 
 	st->n = n;
-	st->min = samples[0];
-	st->max = samples[n - 1];
+	st->min = sorted[0];
+	st->max = sorted[n - 1];
 	st->mean = sum / (double)n;
-	st->p50 = samples[n / 2];
-	st->p90 = samples[(size_t)((double)(n - 1) * 0.90)];
-	st->p99 = samples[(size_t)((double)(n - 1) * 0.99)];
+	st->p50 = sorted[n / 2];
+	st->p90 = sorted[(size_t)((double)(n - 1) * 0.90)];
+	st->p99 = sorted[(size_t)((double)(n - 1) * 0.99)];
+	free(sorted);
 }
 
 static inline void bench_stats_json(FILE *f, const char *key,

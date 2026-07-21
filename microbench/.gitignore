@@ -1,3 +1,4 @@
 timer_jitter/timer_jitter
 smp_barrier/smp_barrier
 smp_pingpong/smp_pingpong
+simple_compute/simple_compute

@@ -1,4 +1,4 @@
-SUBDIRS := timer_jitter smp_barrier smp_pingpong
+SUBDIRS := timer_jitter smp_barrier smp_pingpong simple_compute
 
 .PHONY: all clean $(SUBDIRS)
 

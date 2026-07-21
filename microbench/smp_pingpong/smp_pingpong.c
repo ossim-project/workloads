@@ -95,6 +95,7 @@ int main(int argc, char **argv)
 {
 	const char *raw_path = NULL;
 	struct bench_stats st;
+	struct bench_tail_counts tails;
 	uint64_t *rt_ns;
 	pthread_t peer;
 	long i;
@@ -150,11 +151,15 @@ int main(int argc, char **argv)
 	pthread_join(peer, NULL);
 
 	bench_stats_compute(rt_ns, iters, &st);
+	bench_tail_counts_compute(rt_ns, iters, &tails);
 
 	printf("{\"bench\": \"smp_pingpong\", \"cpu_a\": %d, \"cpu_b\": %d, "
-	       "\"iters\": %ld, \"mode\": \"%s\", ",
+	       "\"iters\": %ld, \"mode\": \"%s\", "
+	       "\"clock\": \"CLOCK_MONOTONIC\", ",
 	       cpu_a, cpu_b, iters, use_futex ? "futex" : "spin");
 	bench_stats_json(stdout, "round_trip_ns", &st);
+	printf(", \"tail_counts\": ");
+	bench_tail_counts_json(stdout, &tails);
 	printf("}\n");
 
 	bench_dump_raw(raw_path, rt_ns, iters);

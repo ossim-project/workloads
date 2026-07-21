@@ -24,7 +24,8 @@ microbench_input_d := $(ROOT)/microbench
 microbench_native_tools := \
     $(microbench_input_d)/timer_jitter/timer_jitter \
     $(microbench_input_d)/smp_barrier/smp_barrier \
-    $(microbench_input_d)/smp_pingpong/smp_pingpong
+    $(microbench_input_d)/smp_pingpong/smp_pingpong \
+    $(microbench_input_d)/simple_compute/simple_compute
 
 .PHONY: build-microbench-tools
 build-microbench-tools:

@@ -34,6 +34,7 @@ int main(int argc, char **argv)
 	long period_us = 1000, iters = 10000, warmup = 100;
 	const char *raw_path = NULL;
 	struct bench_stats st;
+	struct bench_tail_counts tails;
 	struct timespec next;
 	uint64_t *lat_ns;
 	uint64_t next_ns;
@@ -102,9 +103,15 @@ int main(int argc, char **argv)
 	}
 
 	bench_stats_compute(lat_ns, iters, &st);
+	bench_tail_counts_compute(lat_ns, iters, &tails);
 
-	printf("{\"bench\": \"timer_jitter\", \"period_us\": %ld, ", period_us);
+	printf("{\"bench\": \"timer_jitter\", "
+	       "\"clock\": \"CLOCK_MONOTONIC\", \"cpu\": %ld, "
+	       "\"period_us\": %ld, \"warmup_iters\": %ld, ",
+	       cpu, period_us, warmup);
 	bench_stats_json(stdout, "wake_latency_ns", &st);
+	printf(", \"tail_counts\": ");
+	bench_tail_counts_json(stdout, &tails);
 	printf("}\n");
 
 	bench_dump_raw(raw_path, lat_ns, iters);
